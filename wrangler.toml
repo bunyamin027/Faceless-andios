@@ -1,0 +1,10 @@
+name = "faceless-api"
+main = "src/index.js"
+compatibility_date = "2024-03-20"
+
+[vars]
+GEMINI_API_KEY = "placeholder_key_add_via_dashboard"
+TTS_API_KEY = "placeholder_key_add_via_dashboard"
+PEXELS_API_KEY = "placeholder_key_add_via_dashboard"
+SUPABASE_URL = "placeholder_url_add_via_dashboard"
+SUPABASE_SERVICE_KEY = "placeholder_key_add_via_dashboard"

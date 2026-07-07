@@ -1,0 +1,12 @@
+{
+  "name": "faceless-api",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker proxy for Faceless AI",
+  "main": "src/index.js",
+  "scripts": {
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
