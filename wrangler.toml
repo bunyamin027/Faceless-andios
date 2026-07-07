@@ -1,4 +1,4 @@
-name = "faceless-api"
+name = "faceless-ai"
 main = "src/index.js"
 compatibility_date = "2024-03-20"
 
