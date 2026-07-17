@@ -74,35 +74,42 @@ class _CreateScreenState extends State<CreateScreen> {
     setState(() => _isGenerating = true);
 
     try {
-      // Start the pipeline — VideoService handles:
-      // 1. Upload media to Supabase Storage
-      // 2. Create project row
-      // 3. Call CF Worker (Gemini + Pexels + TTS)
-      // 4. Dispatch to Fly.io render worker
-      final stream = VideoService.instance.generate(
+      // Creates project in Supabase and starts pipeline in background.
+      // Returns projectId immediately (~1 second).
+      // Pipeline (Gemini + Pexels + render) runs in background
+      // and updates Supabase status — RenderingScreen watches for changes.
+      final projectId = await VideoService.instance.startGeneration(
         productName: _productNameController.text.trim(),
         description: _descriptionController.text.trim(),
         tone: _selectedTone,
         userMedia: _selectedMedia,
       );
 
-      // Listen for the first projectId, then navigate to rendering screen
-      await for (final progress in stream) {
-        if (progress.projectId != null) {
-          if (mounted) {
-            context.go('/rendering/${progress.projectId}');
-          }
-          break;
-        }
-        if (progress.isFailed) {
-          throw Exception(progress.error ?? 'Generation failed');
-        }
+      if (mounted) {
+        context.go('/rendering/$projectId');
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isGenerating = false);
+
+        final errorMsg = e.toString()
+            .replaceAll('Exception: ', '')
+            .replaceAll('DioException', 'Network error');
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(
+            content: Text(
+              errorMsg.length > 120 ? '${errorMsg.substring(0, 120)}...' : errorMsg,
+            ),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: _generate,
+            ),
+          ),
         );
       }
     }

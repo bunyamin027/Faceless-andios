@@ -10,7 +10,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../app/theme/app_colors.dart';
 import '../app/theme/app_typography.dart';
-import '../services/storage_service.dart';
 import '../services/video_service.dart';
 
 /// ═══════════════════════════════════════════════════════════════════
@@ -80,7 +79,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen>
     _pulseController.dispose();
     _orbController.dispose();
     _progressController.dispose();
-    VideoService.instance.cancelWatch();
+
     super.dispose();
   }
 
@@ -147,72 +146,33 @@ class _CommandCenterScreenState extends State<CommandCenterScreen>
     HapticFeedback.heavyImpact();
     _promptFocus.unfocus();
     setState(() {
-      _state = _PipelineState.uploading;
-      _statusText = 'Preparing media…';
+      _state = _PipelineState.generating;
+      _statusText = 'Creating your video…';
     });
-    _animateProgress(0.05);
+    _animateProgress(0.15);
 
     try {
-      // ── Step 1: Upload media if selected ──
-      if (_selectedMedia != null) {
-        setState(() => _statusText = 'Uploading to cloud…');
-        _animateProgress(0.1);
-        await RawMediaStorageService.instance.upload(_selectedMedia!);
-      }
-
-      // ── Step 2: Start video generation pipeline ──
-      setState(() {
-        _state = _PipelineState.generating;
-        _statusText = 'AI is writing your script…';
-      });
-      _animateProgress(0.2);
-
-      final stream = VideoService.instance.generate(
+      // Creates project in Supabase (~1s) and starts the pipeline
+      // (Gemini + Pexels + render) in the background.
+      // Pipeline updates Supabase status as it progresses.
+      final projectId = await VideoService.instance.startGeneration(
         productName: prompt.split(' ').take(4).join(' '),
         description: prompt,
         tone: 'inspirational',
         userMedia: _selectedMedia,
       );
 
-      await for (final progress in stream) {
-        if (!mounted) break;
+      if (mounted) {
+        setState(() {
+          _statusText = 'Redirecting…';
+        });
+        _animateProgress(0.3);
 
-        setState(() {});
-        _animateProgress(progress.progress / 100);
-
-        switch (progress.stage) {
-          case VideoStage.uploading:
-            setState(() => _statusText = 'Uploading media…');
-            break;
-          case VideoStage.scripting:
-            setState(() {
-              _state = _PipelineState.generating;
-              _statusText = 'AI crafting your script…';
-            });
-            break;
-          case VideoStage.rendering:
-            setState(() {
-              _state = _PipelineState.rendering;
-              _statusText = 'Rendering ${progress.progress}%…';
-            });
-            break;
-          case VideoStage.completed:
-            HapticFeedback.heavyImpact();
-            setState(() {
-              _state = _PipelineState.completed;
-              _statusText = 'Your video is ready!';
-            });
-            _animateProgress(1.0);
-            // Navigate to preview after a short celebration
-            Future.delayed(const Duration(milliseconds: 1200), () {
-              if (mounted && progress.projectId != null) {
-                context.push('/preview/${progress.projectId}');
-                _reset();
-              }
-            });
-            return;
-          case VideoStage.failed:
-            throw Exception(progress.error ?? 'Generation failed');
+        // Navigate to rendering screen — it watches Supabase for updates
+        await Future.delayed(const Duration(milliseconds: 400));
+        if (mounted) {
+          context.push('/rendering/$projectId');
+          _reset();
         }
       }
     } catch (e) {

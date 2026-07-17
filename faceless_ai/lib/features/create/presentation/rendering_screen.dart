@@ -25,6 +25,8 @@ class _RenderingScreenState extends State<RenderingScreen>
     with TickerProviderStateMixin {
   ProjectModel? _project;
   StreamSubscription? _subscription;
+  Timer? _timeoutTimer;
+  Timer? _pollTimer;
 
   late AnimationController _dotController;
 
@@ -62,6 +64,8 @@ class _RenderingScreenState extends State<RenderingScreen>
     _loadProject();
     _startRealtimeListener();
     _startMessageRotation();
+    _startTimeout();
+    _startPolling();
   }
 
   @override
@@ -69,6 +73,8 @@ class _RenderingScreenState extends State<RenderingScreen>
     _dotController.dispose();
     _subscription?.cancel();
     _messageTimer?.cancel();
+    _timeoutTimer?.cancel();
+    _pollTimer?.cancel();
     RealtimeService.stopWatching();
     super.dispose();
   }
@@ -87,12 +93,17 @@ class _RenderingScreenState extends State<RenderingScreen>
         });
 
         // If already completed, navigate
-        if (_project!.status == ProjectStatus.completed) {
+        if (_project!.status == ProjectStatus.completed &&
+              _project!.videoUrl != null) {
+          _timeoutTimer?.cancel();
+          _pollTimer?.cancel();
           context.go('/preview/${widget.projectId}');
+        } else if (_project!.status == ProjectStatus.failed) {
+          _showErrorDialog(_project!.errorMessage ?? 'Video generation failed');
         }
       }
     } catch (e) {
-      // Handle error
+      debugPrint('⚠️ Failed to load project: $e');
     }
   }
 
@@ -103,14 +114,38 @@ class _RenderingScreenState extends State<RenderingScreen>
           final updated = ProjectModel.fromJson(data);
           setState(() => _project = updated);
 
-          if (updated.status == ProjectStatus.completed) {
+          if (updated.status == ProjectStatus.completed &&
+              updated.videoUrl != null) {
+            _timeoutTimer?.cancel();
+            _pollTimer?.cancel();
             context.go('/preview/${widget.projectId}');
           } else if (updated.status == ProjectStatus.failed) {
+            _timeoutTimer?.cancel();
+            _pollTimer?.cancel();
             _showErrorDialog(updated.errorMessage ?? 'Unknown error');
           }
         }
       },
     );
+  }
+
+  /// Timeout: if no result after 2 minutes, show error
+  void _startTimeout() {
+    _timeoutTimer = Timer(const Duration(minutes: 2), () {
+      if (mounted && (_project == null || _project!.status.isProcessing)) {
+        _showErrorDialog(
+          'Video generation is taking too long. Please try again with a simpler description.',
+        );
+      }
+    });
+  }
+
+  /// Polling fallback: check project status every 10 seconds
+  /// In case Supabase Realtime misses an update
+  void _startPolling() {
+    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _loadProject();
+    });
   }
 
   void _startMessageRotation() {

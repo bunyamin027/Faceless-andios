@@ -39,6 +39,8 @@ class AuthSignInRequested extends AuthEvent {
 
 class AuthGoogleSignInRequested extends AuthEvent {}
 
+class AuthAppleSignInRequested extends AuthEvent {}
+
 class AuthSignOutRequested extends AuthEvent {}
 
 // ═══════════════════════════════════════════
@@ -81,6 +83,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthSignUpRequested>(_onSignUp);
     on<AuthSignInRequested>(_onSignIn);
     on<AuthGoogleSignInRequested>(_onGoogleSignIn);
+    on<AuthAppleSignInRequested>(_onAppleSignIn);
     on<AuthSignOutRequested>(_onSignOut);
 
     // Listen to auth state changes
@@ -166,6 +169,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // Auth state change listener will handle the rest
     } catch (e) {
       emit(AuthError('Google sign-in failed: $e'));
+    }
+  }
+
+  Future<void> _onAppleSignIn(
+    AuthAppleSignInRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    try {
+      final response = await SupabaseService.signInWithApple();
+      if (response.user != null) {
+        emit(AuthAuthenticated(response.user!));
+      } else {
+        emit(const AuthError('Apple sign-in failed.'));
+      }
+    } catch (e) {
+      emit(AuthError('Apple sign-in failed: $e'));
     }
   }
 

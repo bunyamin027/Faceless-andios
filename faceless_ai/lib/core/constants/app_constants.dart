@@ -18,7 +18,7 @@ class AppConstants {
   static const String assetsBucket = 'assets';
 
   // ── Timeouts ──
-  static const Duration apiTimeout = Duration(seconds: 30);
+  static const Duration apiTimeout = Duration(seconds: 120);
   static const Duration renderTimeout = Duration(minutes: 5);
   static const Duration uploadTimeout = Duration(minutes: 2);
 

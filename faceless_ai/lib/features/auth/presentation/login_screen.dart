@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -141,6 +143,12 @@ class _LoginScreenState extends State<LoginScreen>
 
                     // ── Google Sign In ──
                     _buildGoogleButton(),
+
+                    // ── Apple Sign In (iOS only) ──
+                    if (Platform.isIOS) ...[
+                      const SizedBox(height: 12),
+                      _buildAppleButton(),
+                    ],
 
                     const SizedBox(height: 32),
 
@@ -301,6 +309,36 @@ class _LoginScreenState extends State<LoginScreen>
         ),
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 16),
+          side: const BorderSide(color: AppColors.glassBorder),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppleButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () {
+          context.read<AuthBloc>().add(AuthAppleSignInRequested());
+        },
+        icon: const Icon(
+          Icons.apple_rounded,
+          color: Colors.white,
+          size: 22,
+        ),
+        label: Text(
+          'Continue with Apple',
+          style: AppTypography.labelLarge.copyWith(
+            color: Colors.white,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          backgroundColor: Colors.white.withValues(alpha: 0.05),
           side: const BorderSide(color: AppColors.glassBorder),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
